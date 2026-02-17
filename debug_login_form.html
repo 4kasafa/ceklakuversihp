@@ -1,0 +1,234 @@
+<!DOCTYPE html><html lang="id"><head><script src="//www.google.com/jsapi"></script><script>window.parent.maeExportApis_();</script>
+
+
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Lay - Darfin</title>
+  <style>
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+      -webkit-tap-highlight-color: transparent;
+      -webkit-text-size-adjust: 100%;
+      -moz-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    
+    html {
+      height: 100%;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+    }
+    
+    .login-container {
+      background: white;
+      padding: 25px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      width: 100%;
+      max-width: 400px;
+      margin: 10px;
+    }
+    
+    .logo { 
+      font-size: 40px; 
+      color: #3498db; 
+      margin-bottom: 10px; 
+      text-align: center; 
+    }
+    
+    .title { 
+      color: #2c3e50; 
+      margin-bottom: 8px; 
+      font-size: 22px; 
+      font-weight: 800; 
+      text-align: center; 
+    }
+    
+    .arab-watermark { 
+      color: #7f8c8d; 
+      font-size: 20px; 
+      margin-bottom: 25px; 
+      text-align: center; 
+      font-weight: 600;
+    }
+    
+    .form-group { 
+      margin-bottom: 18px; 
+    }
+    
+    label { 
+      display: block; 
+      margin-bottom: 8px; 
+      color: #34495e; 
+      font-weight: 600; 
+      font-size: 15px; 
+    }
+    
+    input {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #e0e6ed;
+      border-radius: 10px;
+      font-size: 16px !important;
+      background: #f8fafc;
+      transition: all 0.3s ease;
+    }
+    
+    input:focus { 
+      outline: none; 
+      border-color: #3498db; 
+      background: white;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    }
+    
+    button {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 15px;
+      transition: all 0.3s ease;
+    }
+    
+    button:active {
+      transform: scale(0.98);
+    }
+    
+    button:disabled { 
+      background: #95a5a6; 
+      cursor: not-allowed;
+    }
+    
+    .error {
+      background: #fee;
+      color: #c33;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      font-size: 14px;
+      display: none;
+      border-left: 4px solid #c33;
+    }
+    
+    .footer {
+      margin-top: 20px;
+      color: #7f8c8d;
+      font-size: 14px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    
+    @media (max-width: 480px) {
+      body {
+        padding: 15px;
+      }
+      
+      .login-container {
+        padding: 20px;
+      }
+      
+      .title {
+        font-size: 20px;
+      }
+      
+      input, button {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="logo">🔐</div>
+    <div class="title">KASIR TOKO LAY</div>
+    <div class="arab-watermark">ابو نعمان البوطاني</div>
+    
+    <div class="form-group">
+      <label for="email">📧 Email:</label>
+      <input type="email" id="email" placeholder="Masukkan email" autocomplete="username">
+    </div>
+    
+    <div class="form-group">
+      <label for="password">🔑 Password:</label>
+      <input type="password" id="password" placeholder="Masukkan password" autocomplete="current-password">
+    </div>
+    
+    <button onclick="login()" id="loginBtn">🚀 LOGIN</button>
+    
+    <div id="login-error" class="error"></div>
+    
+    <div class="footer">
+      Dibuat Oleh:<br>
+      Darfin Abu Nu'man (ابو نعمان البوطاني)
+    </div>
+  </div>
+
+  <script>
+    function login() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      
+      if (!email || !password) {
+        showError('Email dan password harus diisi!');
+        return;
+      }
+      
+      const btn = document.getElementById('loginBtn');
+      btn.innerHTML = '⏳ Memproses...';
+      btn.disabled = true;
+      
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (response.success) {
+            setTimeout(function() {
+              window.location.href = response.redirectUrl;
+            }, 100);
+          } else {
+            showError(response.message);
+            btn.innerHTML = '🚀 LOGIN';
+            btn.disabled = false;
+          }
+        })
+        .withFailureHandler(function(error) {
+          showError('Terjadi kesalahan: ' + error.message);
+          btn.innerHTML = '🚀 LOGIN';
+          btn.disabled = false;
+        })
+        .checkLogin({ email: email, password: password });
+    }
+    
+    function showError(message) {
+      const errorDiv = document.getElementById('login-error');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      setTimeout(() => { errorDiv.style.display = 'none'; }, 4000);
+    }
+    
+    document.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') login();
+    });
+  </script>
+
+</body></html>

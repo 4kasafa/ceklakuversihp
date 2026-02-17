@@ -1,0 +1,17 @@
+{
+  "name": "playwright-gas-check",
+  "version": "1.0.0",
+  "description": "Stateless API for Google Apps Script dashboard via Playwright",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "test:gas": "node scripts/test-gas-playwright.js",
+    "test:token-shot": "node scripts/test-token-screenshot.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.22.1",
+    "playwright": "^1.58.2"
+  }
+}
