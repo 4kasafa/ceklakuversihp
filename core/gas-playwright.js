@@ -168,6 +168,43 @@ async function findFrameContainingSelector(rootFrame, selector) {
   return null;
 }
 
+async function waitForDashboardDataReady(frame, timeoutMs) {
+  const start = Date.now();
+  let lastState = 'unknown';
+
+  while (Date.now() - start < timeoutMs) {
+    const state = await frame.evaluate(() => {
+      const tableBody = document.querySelector('#dashboardTableBody');
+      if (!tableBody) {
+        return { ready: false, state: 'TABLE_BODY_NOT_FOUND' };
+      }
+
+      const text = (tableBody.textContent || '').replace(/\s+/g, ' ').trim();
+      if (/^memuat data\.{0,3}$/i.test(text)) {
+        return { ready: false, state: 'LOADING_PLACEHOLDER' };
+      }
+
+      const rows = Array.from(tableBody.querySelectorAll('tr'));
+      const dataRows = rows.filter((tr) =>
+        Array.from(tr.querySelectorAll('td,th')).some((cell) => (cell.textContent || '').trim().length > 0)
+      );
+
+      if (dataRows.length === 0) {
+        return { ready: false, state: 'ROWS_EMPTY' };
+      }
+
+      return { ready: true, state: 'READY' };
+    });
+
+    lastState = state.state;
+    if (state.ready) return;
+
+    await frame.page().waitForTimeout(300);
+  }
+
+  throw new CoreError('TIMEOUT', `Timeout menunggu data dashboard siap. State terakhir: ${lastState}`);
+}
+
 async function extractDashboardFromTable(frame) {
   return frame.evaluate(() => {
     const tableBody = document.querySelector('#dashboardTableBody');
@@ -311,6 +348,7 @@ async function fetchDashboardByToken({
         throw new CoreError('TOKEN_INVALID', 'Data table (#dashboardTableBody) tidak ditemukan. Token mungkin tidak valid.');
       }
 
+      await waitForDashboardDataReady(dataFrame, timeoutMs);
       const extracted = await extractDashboardFromTable(dataFrame);
       if (!extracted) {
         throw new CoreError('DASHBOARD_PARSE_FAILED', 'Gagal parsing data table dashboard.');
