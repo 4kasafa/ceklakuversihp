@@ -16,10 +16,12 @@ const HEADLESS = parseBoolean(process.env.HEADLESS, true);
 const NAVIGATION_TIMEOUT_MS = Number(process.env.NAVIGATION_TIMEOUT_MS || 60000);
 const LOGIN_RATE_LIMIT_WINDOW_MS = Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MS || 60000);
 const LOGIN_RATE_LIMIT_MAX = Number(process.env.LOGIN_RATE_LIMIT_MAX || 10);
-const APPS_SCRIPT_URL =
-  process.env.APPS_SCRIPT_URL ||
-  'https://script.google.com/macros/s/AKfycbx7Yf6D_PX12o2JX_jz6W2DDZrjmwtqo1j0soZRHcAJQTj3ChTz0lzRzFJxP726PTO5gQ/exec';
+const APPS_SCRIPT_URL = String(process.env.APPS_SCRIPT_URL || '').trim();
 const loginRateLimitStore = new Map();
+
+if (!APPS_SCRIPT_URL) {
+  throw new Error('APPS_SCRIPT_URL wajib diisi pada environment variable.');
+}
 
 function errorJson(res, status, code, message) {
   return res.status(status).json({
@@ -31,6 +33,37 @@ function errorJson(res, status, code, message) {
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function maskEmail(email) {
+  const trimmed = String(email || '').trim();
+  const atIndex = trimmed.indexOf('@');
+  if (atIndex <= 1) return '***';
+  const local = trimmed.slice(0, atIndex);
+  const domain = trimmed.slice(atIndex + 1);
+  return `${local[0]}***@${domain || '***'}`;
+}
+
+function extractKasirNames(rows) {
+  if (!Array.isArray(rows)) return [];
+  const names = new Set();
+  for (const row of rows) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) continue;
+    const kasir = typeof row.Kasir === 'string' ? row.Kasir.trim() : '';
+    if (kasir) names.add(kasir);
+  }
+  return Array.from(names);
+}
+
+function getBearerToken(req) {
+  const raw = req.headers.authorization;
+  if (typeof raw !== 'string') return '';
+  const match = raw.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : '';
+}
+
+function getTokenFromRequest(req) {
+  return getBearerToken(req);
 }
 
 function getClientIp(req) {
@@ -88,7 +121,7 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/session/status', (req, res) => {
-  const token = String(req.query.token || '').trim();
+  const token = getTokenFromRequest(req);
   if (!token) {
     return res.json({
       success: true,
@@ -108,6 +141,8 @@ app.post('/auth/login', enforceLoginRateLimit, async (req, res) => {
   const email = typeof req.body?.email === 'string' ? req.body.email : '';
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
   const trimmedEmail = email.trim();
+  const clientIp = getClientIp(req);
+  const maskedEmail = maskEmail(trimmedEmail);
 
   if (!trimmedEmail || !password) {
     return errorJson(res, 422, 'INVALID_CREDENTIALS_INPUT', 'Email dan password wajib diisi.');
@@ -128,9 +163,11 @@ app.post('/auth/login', enforceLoginRateLimit, async (req, res) => {
       headless: HEADLESS,
     });
 
+    console.log(
+      `[${new Date().toISOString()}] LOGIN_SUCCESS email=${maskedEmail} ip=${clientIp}`
+    );
     return res.json({
       success: true,
-      urlToken: result.urlToken,
       token: result.token,
       expiresAt: result.expiresAt,
     });
@@ -138,12 +175,20 @@ app.post('/auth/login', enforceLoginRateLimit, async (req, res) => {
     const message = error instanceof Error ? error.message : String(error);
     const code = error && typeof error === 'object' && 'code' in error ? error.code : '';
     if (code === 'LOGIN_INVALID_CREDENTIALS') {
+      console.warn(
+        `[${new Date().toISOString()}] LOGIN_FAILED email=${maskedEmail} ip=${clientIp} code=LOGIN_INVALID_CREDENTIALS`
+      );
       return errorJson(res, 401, 'LOGIN_FAILED', message);
     }
     if (code === 'TIMEOUT') {
+      console.warn(
+        `[${new Date().toISOString()}] LOGIN_FAILED email=${maskedEmail} ip=${clientIp} code=TIMEOUT`
+      );
       return errorJson(res, 504, 'LOGIN_TIMEOUT', message);
     }
-    console.error(`[${new Date().toISOString()}] LOGIN_FAILED: ${message}`);
+    console.error(
+      `[${new Date().toISOString()}] LOGIN_FAILED email=${maskedEmail} ip=${clientIp} code=LOGIN_FAILED message=${message}`
+    );
     return errorJson(
       res,
       500,
@@ -154,9 +199,15 @@ app.post('/auth/login', enforceLoginRateLimit, async (req, res) => {
 });
 
 app.get('/dashboard', async (req, res) => {
-  const token = String(req.query.token || '').trim();
+  const token = getTokenFromRequest(req);
+  const clientIp = getClientIp(req);
   if (!token) {
-    return errorJson(res, 400, 'TOKEN_REQUIRED', 'Parameter query "token" wajib diisi.');
+    return errorJson(
+      res,
+      400,
+      'TOKEN_REQUIRED',
+      'Token wajib diisi pada header Authorization: Bearer <token>.'
+    );
   }
   if (token.length > 5000) {
     return errorJson(res, 422, 'INVALID_TOKEN_INPUT', 'Parameter token terlalu panjang.');
@@ -169,6 +220,10 @@ app.get('/dashboard', async (req, res) => {
       timeoutMs: NAVIGATION_TIMEOUT_MS,
       headless: HEADLESS,
     });
+    const kasirNames = extractKasirNames(dashboard.data);
+    console.log(
+      `[${new Date().toISOString()}] DASHBOARD_ACCESS ip=${clientIp} kasir=${kasirNames.join(', ') || '-'} rows=${dashboard.rowCount}`
+    );
 
     return res.json({
       success: true,
@@ -197,7 +252,7 @@ app.get('/dashboard', async (req, res) => {
 app.get('/', (req, res) => {
   return res.json({
     success: true,
-    message: 'API aktif. Gunakan POST /auth/login dan GET /dashboard?token=...',
+    message: 'API aktif. Gunakan POST /auth/login dan GET /dashboard dengan header Authorization.',
   });
 });
 

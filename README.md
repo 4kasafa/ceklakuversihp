@@ -5,7 +5,7 @@ Backend API stateless untuk login ke Google Apps Script (GAS) via Playwright, me
 ## Fitur
 
 - `POST /auth/login` untuk login dan ambil `token`.
-- `GET /dashboard?token=...` untuk ambil data dashboard.
+- `GET /dashboard` untuk ambil data dashboard (header `Authorization: Bearer <token>`).
 - `GET /health` untuk healthcheck.
 - Rate limit sederhana untuk login.
 - Browser Playwright singleton (lebih efisien dari launch per request).
@@ -58,7 +58,8 @@ Server: `http://localhost:3000`
 ```
 
 ### 3) Dashboard
-- `GET /dashboard?token=ISI_TOKEN`
+- `GET /dashboard`
+- Header: `Authorization: Bearer ISI_TOKEN`
 
 ## Script Testing
 
